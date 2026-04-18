@@ -15,7 +15,7 @@ router.use(requireAuth, adminOnly);
  */
 router.get('/permisos', (req, res) => {
   try {
-    const allPermisos = db.prepare('SELECT * FROM permisos').all();
+    const allPermisos = db.get('permisos').value();
     res.json(allPermisos);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener privilegios.' });
@@ -31,9 +31,13 @@ router.post('/permisos', (req, res) => {
   if (!username || !permiso) return res.status(400).json({ message: 'Faltan campos requeridos.' });
 
   try {
-    db.prepare('INSERT OR IGNORE INTO permisos (username, permiso) VALUES (?, ?)')
-      .run(username.toLowerCase(), permiso);
-    res.json({ message: 'Permiso asignado con éxito.' });
+    const user = username.toLowerCase();
+    const existing = db.get('permisos').find({ username: user, permiso }).value();
+    
+    if (!existing) {
+      db.get('permisos').push({ username: user, permiso }).write();
+    }
+    res.json({ message: 'Permiso procesado con éxito.' });
   } catch (error) {
     res.status(500).json({ message: 'Error al registrar permiso.' });
   }
@@ -45,8 +49,9 @@ router.post('/permisos', (req, res) => {
  */
 router.delete('/permisos/:username/:permiso', (req, res) => {
   try {
-    db.prepare('DELETE FROM permisos WHERE username = ? AND permiso = ?')
-      .run(req.params.username.toLowerCase(), req.params.permiso);
+    db.get('permisos')
+      .remove({ username: req.params.username.toLowerCase(), permiso: req.params.permiso })
+      .write();
     res.json({ message: 'Permiso revocado.' });
   } catch (error) {
     res.status(500).json({ message: 'Error al revocar privilegio.' });

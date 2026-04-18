@@ -4,7 +4,6 @@ const { authenticate } = require('ldap-authentication');
 const db = require('../database');
 require('dotenv').config();
 
-// Lista de usuarios con rol de administrador (definida en el archivo .env)
 const USUARIOS_ADMIN = (process.env.ADMIN_USERS || '').split(',').map(u => u.trim().toLowerCase());
 
 /**
@@ -23,31 +22,38 @@ router.post('/login', async (req, res) => {
    * Permite el login sin conexión a AD durante pruebas locales.
    */
   if (process.env.NODE_ENV === 'development' && password === 'admin123') {
-     console.log('Utilizando bypass de desarrollo para login...');
-     const sAMAccountName = username.split('@')[0].toLowerCase();
-     const esAdmin = USUARIOS_ADMIN.includes(sAMAccountName);
-     
-     // Sincronización básica con DB local
-     db.prepare(`
-        INSERT INTO usuarios (username, displayName, email, lastLogin)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(username) DO UPDATE SET lastLogin=CURRENT_TIMESTAMP
-      `).run(sAMAccountName, sAMAccountName, username);
+    console.log('Utilizando bypass de desarrollo para login...');
+    const sAMAccountName = username.split('@')[0].toLowerCase();
+    const esAdmin = USUARIOS_ADMIN.includes(sAMAccountName);
 
-      const permisos = db.prepare('SELECT permiso FROM permisos WHERE username = ?')
-        .all(sAMAccountName)
-        .map(r => r.permiso);
-
-      const usuarioSesion = {
+    // Sincronización básica con DB local (lowdb)
+    const existingUser = db.get('usuarios').find({ username: sAMAccountName }).value();
+    if (existingUser) {
+      db.get('usuarios').find({ username: sAMAccountName }).assign({ lastLogin: new Date().toISOString() }).write();
+    } else {
+      db.get('usuarios').push({
         username: sAMAccountName,
         displayName: sAMAccountName,
         email: username,
-        isAdmin: esAdmin,
-        permissions: esAdmin ? ['notas', 'tareas', 'reportes'] : permisos,
-      };
+        lastLogin: new Date().toISOString()
+      }).write();
+    }
 
-      req.session.user = usuarioSesion;
-      return res.json(usuarioSesion);
+    const permisos = db.get('permisos')
+      .filter({ username: sAMAccountName })
+      .value()
+      .map(r => r.permiso);
+
+    const usuarioSesion = {
+      username: sAMAccountName,
+      displayName: sAMAccountName,
+      email: username,
+      isAdmin: esAdmin,
+      permissions: esAdmin ? ['notas', 'tareas', 'reportes'] : permisos,
+    };
+
+    req.session.user = usuarioSesion;
+    return res.json(usuarioSesion);
   }
 
   /**
@@ -77,15 +83,28 @@ router.post('/login', async (req, res) => {
     const sAMAccountName = (usuarioAD.sAMAccountName || username).toLowerCase();
     const esAdmin = USUARIOS_ADMIN.includes(sAMAccountName);
 
-    // Registro o actualización en la base de datos local
-    db.prepare(`
-      INSERT INTO usuarios (username, displayName, email, lastLogin)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(username) DO UPDATE SET displayName=excluded.displayName, lastLogin=CURRENT_TIMESTAMP
-    `).run(sAMAccountName, usuarioAD.displayName || sAMAccountName, usuarioAD.mail || '');
+    // Registro o actualización en la base de datos local (lowdb)
+    const existingSync = db.get('usuarios').find({ username: sAMAccountName }).value();
+    if (existingSync) {
+      db.get('usuarios')
+        .find({ username: sAMAccountName })
+        .assign({
+          displayName: usuarioAD.displayName || sAMAccountName,
+          lastLogin: new Date().toISOString()
+        })
+        .write();
+    } else {
+      db.get('usuarios').push({
+        username: sAMAccountName,
+        displayName: usuarioAD.displayName || sAMAccountName,
+        email: usuarioAD.mail || '',
+        lastLogin: new Date().toISOString()
+      }).write();
+    }
 
-    const permisos = db.prepare('SELECT permiso FROM permisos WHERE username = ?')
-      .all(sAMAccountName)
+    const permisos = db.get('permisos')
+      .filter({ username: sAMAccountName })
+      .value()
       .map(r => r.permiso);
 
     const usuarioSesion = {
@@ -118,10 +137,11 @@ router.get('/me', (req, res) => {
   }
 
   const { username, isAdmin } = req.session.user;
-  
-  // Obtener permisos en tiempo real de la base de datos
-  const permisos = db.prepare('SELECT permiso FROM permisos WHERE username = ?')
-    .all(username)
+
+  // Obtener permisos en tiempo real de la base de datos (lowdb)
+  const permisos = db.get('permisos')
+    .filter({ username })
+    .value()
     .map(r => r.permiso);
 
   const usuarioActualizado = {

@@ -14,8 +14,10 @@ router.use(requireAuth);
  */
 router.get('/', (req, res) => {
   try {
-    const notas = db.prepare('SELECT * FROM notas WHERE username = ? ORDER BY createdAt DESC')
-      .all(req.session.user.username);
+    const notas = db.get('notas')
+      .filter({ username: req.session.user.username })
+      .orderBy(['createdAt'], ['desc'])
+      .value();
     res.json(notas);
   } catch (error) {
     res.status(500).json({ message: 'Error al recuperar las notas.' });
@@ -31,9 +33,17 @@ router.post('/', (req, res) => {
   if (!titulo) return res.status(400).json({ message: 'El título es obligatorio.' });
 
   try {
-    const info = db.prepare('INSERT INTO notas (username, titulo, contenido) VALUES (?, ?, ?)')
-      .run(req.session.user.username, titulo, contenido);
-    res.status(201).json({ id: info.lastInsertRowid, titulo, contenido });
+    const newId = Date.now();
+    const nuevaNota = {
+      id: newId,
+      username: req.session.user.username,
+      titulo,
+      contenido,
+      createdAt: new Date().toISOString()
+    };
+    
+    db.get('notas').push(nuevaNota).write();
+    res.status(201).json(nuevaNota);
   } catch (error) {
     res.status(500).json({ message: 'Error al guardar la nota.' });
   }
@@ -45,10 +55,11 @@ router.post('/', (req, res) => {
  */
 router.delete('/:id', (req, res) => {
   try {
-    const info = db.prepare('DELETE FROM notas WHERE id = ? AND username = ?')
-      .run(req.params.id, req.session.user.username);
+    const result = db.get('notas')
+      .remove({ id: parseInt(req.params.id) || req.params.id, username: req.session.user.username })
+      .write();
     
-    if (info.changes === 0) {
+    if (result.length === 0) {
       return res.status(404).json({ message: 'Nota no encontrada o permiso denegado.' });
     }
     res.json({ message: 'Nota eliminada correctamente.' });

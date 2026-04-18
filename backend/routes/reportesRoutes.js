@@ -16,13 +16,21 @@ router.get('/stats', (req, res) => {
   const username = req.session.user.username;
   
   try {
-    // Contar notas y tareas por estado
-    const countNotas = db.prepare('SELECT COUNT(*) as total FROM notas WHERE username = ?').get(username).total;
-    const statsTareas = db.prepare('SELECT estado, COUNT(*) as cantidad FROM tareas WHERE username = ? GROUP BY estado').all(username);
+    // Contar notas y tareas por estado usando lowdb/lodash
+    const totalNotas = db.get('notas').filter({ username }).size().value();
+    
+    // Agrupar tareas por estado y contar
+    const tareasUsuario = db.get('tareas').filter({ username }).value();
+    const resumenTareas = Object.entries(
+      tareasUsuario.reduce((acc, current) => {
+        acc[current.estado] = (acc[current.estado] || 0) + 1;
+        return acc;
+      }, {})
+    ).map(([estado, cantidad]) => ({ estado, cantidad }));
     
     res.json({
-      totalNotas: countNotas,
-      resumenTareas: statsTareas,
+      totalNotas,
+      resumenTareas,
       generadoEn: new Date().toISOString()
     });
   } catch (error) {

@@ -123,7 +123,7 @@ export function LoginForm({
             <img
               src="/login-bg.png"
               alt="Infraestructura Corporativa"
-              className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.4] transition-transform duration-[10s] hover:scale-110" 
+              className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.4] transition-transform duration-[10000ms] hover:scale-110" 
             />
             {/* Overlay de gradiente para mejorar la integración visual */}
             <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-primary/20 to-transparent" />

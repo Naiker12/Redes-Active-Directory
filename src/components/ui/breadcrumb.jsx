@@ -3,7 +3,7 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 
 import { cn } from "@/lib/utils"
-import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
+import { ChevronRight, MoreHorizontal } from "lucide-react"
 
 function Breadcrumb({
   className,
@@ -90,7 +90,7 @@ function BreadcrumbSeparator({
       className={cn("[&>svg]:size-3.5", className)}
       {...props}>
       {children ?? (
-        <ChevronRightIcon />
+        <ChevronRight />
       )}
     </li>
   );
@@ -107,7 +107,7 @@ function BreadcrumbEllipsis({
       aria-hidden="true"
       className={cn("flex size-5 items-center justify-center [&>svg]:size-4", className)}
       {...props}>
-      <MoreHorizontalIcon />
+      <MoreHorizontal />
       <span className="sr-only">More</span>
     </span>
   );

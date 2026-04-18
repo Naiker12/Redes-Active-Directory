@@ -3,7 +3,7 @@ import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { XIcon } from "lucide-react"
+import { X } from "lucide-react"
 
 function Sheet({
   ...props
@@ -69,7 +69,7 @@ function SheetContent({
             render={
               <Button variant="ghost" className="absolute top-3 right-3" size="icon-sm" />
             }>
-            <XIcon />
+            <X />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
         )}

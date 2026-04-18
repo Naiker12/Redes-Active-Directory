@@ -14,8 +14,10 @@ router.use(requireAuth);
  */
 router.get('/', (req, res) => {
   try {
-    const tareas = db.prepare('SELECT * FROM tareas WHERE username = ? ORDER BY createdAt DESC')
-      .all(req.session.user.username);
+    const tareas = db.get('tareas')
+      .filter({ username: req.session.user.username })
+      .orderBy(['createdAt'], ['desc'])
+      .value();
     res.json(tareas);
   } catch (error) {
     res.status(500).json({ message: 'Error al recuperar las tareas.' });
@@ -31,9 +33,17 @@ router.post('/', (req, res) => {
   if (!titulo) return res.status(400).json({ message: 'El título de la tarea es obligatorio.' });
 
   try {
-    const info = db.prepare('INSERT INTO tareas (username, titulo, estado) VALUES (?, ?, ?)')
-      .run(req.session.user.username, titulo, estado || 'Pendiente');
-    res.status(201).json({ id: info.lastInsertRowid, titulo, estado: estado || 'Pendiente' });
+    const newId = Date.now();
+    const nuevaTarea = {
+      id: newId,
+      username: req.session.user.username,
+      titulo,
+      estado: estado || 'Pendiente',
+      createdAt: new Date().toISOString()
+    };
+    
+    db.get('tareas').push(nuevaTarea).write();
+    res.status(201).json(nuevaTarea);
   } catch (error) {
     res.status(500).json({ message: 'Error al registrar la tarea.' });
   }
@@ -46,16 +56,23 @@ router.post('/', (req, res) => {
 router.patch('/:id', (req, res) => {
   const { estado, titulo } = req.body;
   try {
-    const task = db.prepare('SELECT * FROM tareas WHERE id = ? AND username = ?').get(req.params.id, req.session.user.username);
+    const task = db.get('tareas')
+      .find({ id: parseInt(req.params.id) || req.params.id, username: req.session.user.username })
+      .value();
+      
     if (!task) return res.status(404).json({ message: 'Tarea no encontrada.' });
 
-    const finalTitulo = titulo || task.titulo;
-    const finalEstado = estado || task.estado;
+    const updates = {
+      titulo: titulo || task.titulo,
+      estado: estado || task.estado
+    };
 
-    db.prepare('UPDATE tareas SET titulo = ?, estado = ? WHERE id = ?')
-      .run(finalTitulo, finalEstado, req.params.id);
+    db.get('tareas')
+      .find({ id: task.id })
+      .assign(updates)
+      .write();
     
-    res.json({ id: req.params.id, titulo: finalTitulo, estado: finalEstado });
+    res.json({ ...task, ...updates });
   } catch (error) {
     res.status(500).json({ message: 'Error al actualizar la tarea.' });
   }
@@ -67,9 +84,11 @@ router.patch('/:id', (req, res) => {
  */
 router.delete('/:id', (req, res) => {
   try {
-    const info = db.prepare('DELETE FROM tareas WHERE id = ? AND username = ?')
-      .run(req.params.id, req.session.user.username);
-    if (info.changes === 0) return res.status(404).json({ message: 'No se pudo eliminar la tarea.' });
+    const result = db.get('tareas')
+      .remove({ id: parseInt(req.params.id) || req.params.id, username: req.session.user.username })
+      .write();
+      
+    if (result.length === 0) return res.status(404).json({ message: 'No se pudo eliminar la tarea.' });
     res.json({ message: 'Tarea eliminada.' });
   } catch (error) {
     res.status(500).json({ message: 'Error interno al borrar.' });
