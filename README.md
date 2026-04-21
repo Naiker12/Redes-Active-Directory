@@ -1,84 +1,341 @@
-# Portal Corporativo de Gestión Administrativa y Redes
+# Redes App
 
-Este proyecto es una plataforma web de alta fidelidad diseñada para la gestión centralizada de identidades, notas administrativas, tareas y reportes, con integración nativa a **Active Directory (LDAP)**.
+Guia rapida para ejecutar el proyecto paso a paso en entorno local o en Windows Server 2012, incluyendo backend, frontend, PM2 y pruebas con Active Directory.
 
-## 🚀 Arquitectura Tecnológica
+## Estructura del proyecto
 
-### Frontend (User Interface)
-*   **React 18 + Vite**: Framework base para una experiencia de usuario rápida y moderna.
-*   **Tailwind CSS + Shadcn/UI**: Sistema de diseño basado en componentes premium, estandarizado exclusivamente en **Light Mode**.
-*   **Base UI**: Utilizado para componentes complejos (`Sidebar`, `Tooltip`) garantizando accesibilidad y rendimiento.
-*   **Magic UI**: Implementación de tarjetas animadas y efectos visuales de alta gama.
-*   **Lucide React**: Set de iconos vectoriales consistentes.
-*   **Zustand**: Gestión de estado ligero para persistencia de sesión y autenticación.
+```text
+d:\redes-app
+  backend\
+  frontend\
+```
 
-### Backend (Core API)
-*   **Node.js + Express**: Servidor escalable para orquestación de servicios.
-*   **LDAPjs**: Motor de comunicación con el controlador de dominio Active Directory.
-*   **Better-SQLite3**: Base de datos local de alto rendimiento para persistencia de permisos y metadatos.
-*   **Dotenv**: Gestión segura de variables de entorno.
+## 1. Configurar `backend/.env`
 
----
+Archivo:
 
-## 🛠️ Guía de Instalación y Despliegue (Windows Server)
+```text
+d:\redes-app\backend\.env
+```
 
-Esta guía detalla los pasos para subir el proyecto a un entorno de producción en un servidor Windows.
-
-### 1. Requisitos Previos
-*   Instalar **Node.js** (Versión 18 o superior).
-*   Configurar el rol de **Servidor Web (IIS)** o usar un gestor de procesos como **PM2**.
-*   Acceso de lectura al **Active Directory** (Servidor LDAP).
-
-### 2. Configuración del Entorno (`.env`)
-Crear un archivo `.env` en la raíz de la carpeta `backend/` con los siguientes parámetros:
+Ejemplo:
 
 ```env
 PORT=3000
-# Configuración AD
-AD_URL=ldap://tu-servidor-ad
-AD_BASE_DN=OU=Usuarios,DC=dominio,DC=local
-AD_ADMIN_DN=CN=AdminPortal,OU=ServiceAccounts,DC=dominio,DC=local
-AD_ADMIN_PASSWORD=TuPasswordSegura
-ADMIN_USERS=usuario_admin1,usuario_admin2
+SESSION_SECRET=super_clave_larga_y_segura
+
+AD_URL=ldap://192.168.1.10
+AD_BASE_DN=DC=tudominio,DC=local
+AD_ADMIN_DN=CN=ldapservice,CN=Users,DC=tudominio,DC=local
+AD_ADMIN_PASSWORD=TuClaveDeServicio
+
+ADMIN_USERS=administrador,admin,gomez
+NODE_ENV=development
 ```
 
-### 3. Preparación del Frontend
-Desde la raíz del proyecto, ejecute:
-```powershell
-npm install
-npm run build
-```
-Esto generará la carpeta `dist/`. Mueva estos archivos a su directorio de IIS (ej. `C:\inetpub\wwwroot\portal`).
+Notas:
 
-### 4. Ejecución del Backend
-En la carpeta `backend/`:
+- Si vas a probar con bypass local, usa `NODE_ENV=development`.
+- Si vas a probar contra Active Directory real, usa `NODE_ENV=production`.
+- El backend actual usa exactamente estas variables: `AD_URL`, `AD_BASE_DN`, `AD_ADMIN_DN`, `AD_ADMIN_PASSWORD`.
+
+## 2. Instalar dependencias del backend
+
+Abrir PowerShell y ejecutar:
+
 ```powershell
+cd d:\redes-app\backend
 npm install
-# Opción A: Ejecución Directa
+```
+
+## 3. Correr el backend
+
+### Opcion A: modo desarrollo
+
+Permite usar el bypass con password `admin123`.
+
+```powershell
+cd d:\redes-app\backend
+npm run dev
+```
+
+API:
+
+```text
+http://localhost:3000/api
+```
+
+### Opcion B: modo normal
+
+```powershell
+cd d:\redes-app\backend
 node server.js
-# Opción B: Recomendado para Windows Service
+```
+
+## 4. Correr el frontend
+
+### Opcion A: frontend separado en local
+
+Deja el backend en `development`.
+
+Terminal 1:
+
+```powershell
+cd d:\redes-app\backend
+npm run dev
+```
+
+Terminal 2:
+
+```powershell
+cd d:\redes-app\frontend
+python -m http.server 5500
+```
+
+Abrir en el navegador:
+
+```text
+http://localhost:5500/
+```
+
+### Opcion B: frontend servido por el backend
+
+Esto requiere `production`.
+
+```powershell
+cd d:\redes-app\backend
+$env:NODE_ENV="production"
+node server.js
+```
+
+Abrir en el navegador:
+
+```text
+http://localhost:3000/
+```
+
+Importante:
+
+- En este modo ya no funciona el bypass `admin123`.
+- Aqui debe autenticar contra Active Directory real.
+
+## 5. Login de prueba
+
+### Si `NODE_ENV=development`
+
+Puedes entrar con:
+
+- usuario: `usuario@dominio.com`
+- password: `admin123`
+
+### Si `NODE_ENV=production`
+
+Debes usar:
+
+- usuario real del Active Directory
+- password real del Active Directory
+
+## 6. Instalar PM2 en Windows Server 2012
+
+Instalar PM2 global:
+
+```powershell
 npm install -g pm2
-pm2 start server.js --name "redes-api"
+```
+
+Verificar:
+
+```powershell
+pm2 -v
+```
+
+## 7. Correr backend con PM2
+
+```powershell
+cd d:\redes-app\backend
+pm2 start server.js --name redes-app
+```
+
+Ver procesos:
+
+```powershell
+pm2 list
+```
+
+Ver logs:
+
+```powershell
+pm2 logs redes-app
+```
+
+Reiniciar:
+
+```powershell
+pm2 restart redes-app
+```
+
+Detener:
+
+```powershell
+pm2 stop redes-app
+```
+
+Eliminar proceso:
+
+```powershell
+pm2 delete redes-app
+```
+
+Guardar configuracion:
+
+```powershell
 pm2 save
 ```
 
----
+## 8. Correr con PM2 en produccion
 
-## 🛡️ Control de Acceso y Auditoría
+Si quieres que el backend sirva tambien el frontend:
 
-El portal utiliza un sistema de **Sincronización por Identidad**:
-1.  **Autenticación**: El usuario ingresa sus credenciales de dominio.
-2.  **Validación**: El servidor consulta al AD para verificar pertenencia y rol.
-3.  **Autorización**: Se cargan los permisos específicos almacenados en la base de datos local (SQLite).
+```powershell
+cd d:\redes-app\backend
+pm2 delete redes-app
+$env:NODE_ENV="production"
+pm2 start server.js --name redes-app
+pm2 save
+```
 
-### Roles del Sistema
-*   **Administrador AD**: Acceso total a la Consola de Auditoría y gestión de permisos.
-*   **Usuario Estándar**: Acceso limitado a módulos según asignación previa.
+Abrir:
 
----
+```text
+http://localhost:3000/
+```
 
-## 🎨 Estándares de Diseño
-*   **Tema**: Light Mode Clean (Blanco Corporativo).
-*   **Bordes**: Radio de curvatura estandarizado a `1.5rem` (Premium Soft).
-*   **Tipografía**: **Inter** (Integrada vía Google Fonts).
-"# Redes-Active-Directory" 
+## 9. Probar Active Directory
+
+Debes confirmar que `backend/.env` tenga valores reales:
+
+```env
+AD_URL=ldap://IP_DEL_SERVIDOR_AD
+AD_BASE_DN=DC=tudominio,DC=local
+AD_ADMIN_DN=CN=usuario_servicio,CN=Users,DC=tudominio,DC=local
+AD_ADMIN_PASSWORD=clave_real
+NODE_ENV=production
+```
+
+Luego iniciar o reiniciar:
+
+```powershell
+cd d:\redes-app\backend
+pm2 restart redes-app
+```
+
+O directo:
+
+```powershell
+cd d:\redes-app\backend
+$env:NODE_ENV="production"
+node server.js
+```
+
+## 10. Si sale `Cannot GET /`
+
+Eso significa casi siempre que:
+
+- el backend esta corriendo,
+- pero esta en `development`,
+- y por eso no esta sirviendo `frontend/`.
+
+Solucion 1:
+
+```powershell
+cd d:\redes-app\backend
+$env:NODE_ENV="production"
+node server.js
+```
+
+Solucion 2:
+
+```powershell
+cd d:\redes-app\frontend
+python -m http.server 5500
+```
+
+## 11. Flujo recomendado
+
+### Prueba local rapida
+
+Terminal 1:
+
+```powershell
+cd d:\redes-app\backend
+npm run dev
+```
+
+Terminal 2:
+
+```powershell
+cd d:\redes-app\frontend
+python -m http.server 5500
+```
+
+Abrir:
+
+```text
+http://localhost:5500/
+```
+
+### Prueba real con Active Directory
+
+Configurar `.env` con datos reales y luego:
+
+```powershell
+cd d:\redes-app\backend
+$env:NODE_ENV="production"
+node server.js
+```
+
+Abrir:
+
+```text
+http://localhost:3000/
+```
+
+## 12. Comandos resumen
+
+### Backend dev
+
+```powershell
+cd d:\redes-app\backend
+npm run dev
+```
+
+### Backend normal
+
+```powershell
+cd d:\redes-app\backend
+node server.js
+```
+
+### Frontend local
+
+```powershell
+cd d:\redes-app\frontend
+python -m http.server 5500
+```
+
+### Backend y frontend desde Express
+
+```powershell
+cd d:\redes-app\backend
+$env:NODE_ENV="production"
+node server.js
+```
+
+### PM2
+
+```powershell
+cd d:\redes-app\backend
+pm2 start server.js --name redes-app
+pm2 list
+pm2 logs redes-app
+```

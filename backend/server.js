@@ -53,13 +53,16 @@ app.use('/api/admin', adminRoutes);
  * Manejo de Archivos Estáticos y SPA (Producción)
  */
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist')));
-  
-  // Redireccionar cualquier ruta no-API al index.html de React
-  app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(__dirname, '../dist/index.html'));
+  const frontendPath = path.join(__dirname, '../frontend');
+
+  app.use(express.static(frontendPath));
+
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
     }
+
+    res.sendFile(path.join(frontendPath, 'index.html'));
   });
 }
 
