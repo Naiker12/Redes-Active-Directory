@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('ldap-authentication');
 const db = require('../database');
+const {
+  getAdPermissionsForUser,
+  getPermissionsFromMemberOf
+} = require('../services/adPermissions');
 require('dotenv').config();
 
 const USUARIOS_ADMIN = (process.env.ADMIN_USERS || '').split(',').map(u => u.trim().toLowerCase());
@@ -82,6 +86,7 @@ router.post('/login', async (req, res) => {
 
     const sAMAccountName = (usuarioAD.sAMAccountName || username).toLowerCase();
     const esAdmin = USUARIOS_ADMIN.includes(sAMAccountName);
+    const permisosAD = getPermissionsFromMemberOf(usuarioAD.memberOf);
 
     // Registro o actualización en la base de datos local (lowdb)
     const existingSync = db.get('usuarios').find({ username: sAMAccountName }).value();
@@ -102,10 +107,12 @@ router.post('/login', async (req, res) => {
       }).write();
     }
 
-    const permisos = db.get('permisos')
-      .filter({ username: sAMAccountName })
-      .value()
-      .map(r => r.permiso);
+    const permisos = permisosAD !== null
+      ? permisosAD
+      : db.get('permisos')
+          .filter({ username: sAMAccountName })
+          .value()
+          .map(r => r.permiso);
 
     const usuarioSesion = {
       username: sAMAccountName,
@@ -138,19 +145,42 @@ router.get('/me', (req, res) => {
 
   const { username, isAdmin } = req.session.user;
 
-  // Obtener permisos en tiempo real de la base de datos (lowdb)
-  const permisos = db.get('permisos')
-    .filter({ username })
-    .value()
-    .map(r => r.permiso);
+  const permisosPromise = async () => {
+    const permisosAD = await getAdPermissionsForUser(username);
+    if (permisosAD !== null) {
+      return permisosAD;
+    }
 
-  const usuarioActualizado = {
-    ...req.session.user,
-    permissions: isAdmin ? ['notas', 'tareas', 'reportes'] : permisos,
+    return db.get('permisos')
+      .filter({ username })
+      .value()
+      .map(r => r.permiso);
   };
 
-  req.session.user = usuarioActualizado;
-  res.json(usuarioActualizado);
+  permisosPromise()
+    .then((permisos) => {
+      const usuarioActualizado = {
+        ...req.session.user,
+        permissions: isAdmin ? ['notas', 'tareas', 'reportes'] : permisos,
+      };
+
+      req.session.user = usuarioActualizado;
+      res.json(usuarioActualizado);
+    })
+    .catch(() => {
+      const permisos = db.get('permisos')
+        .filter({ username })
+        .value()
+        .map(r => r.permiso);
+
+      const usuarioActualizado = {
+        ...req.session.user,
+        permissions: isAdmin ? ['notas', 'tareas', 'reportes'] : permisos,
+      };
+
+      req.session.user = usuarioActualizado;
+      res.json(usuarioActualizado);
+    });
 });
 
 /**

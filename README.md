@@ -29,6 +29,10 @@ AD_BASE_DN=DC=tudominio,DC=local
 AD_ADMIN_DN=CN=ldapservice,CN=Users,DC=tudominio,DC=local
 AD_ADMIN_PASSWORD=TuClaveDeServicio
 
+AD_PERMISSION_GROUP_NOTAS=CN=Grupo_Notas,CN=Users,DC=tudominio,DC=local
+AD_PERMISSION_GROUP_TAREAS=CN=Grupo_Tareas,CN=Users,DC=tudominio,DC=local
+AD_PERMISSION_GROUP_REPORTES=CN=Grupo_Reportes,CN=Users,DC=tudominio,DC=local
+
 ADMIN_USERS=administrador,admin,gomez
 NODE_ENV=development
 ```
@@ -37,7 +41,10 @@ Notas:
 
 - Si vas a probar con bypass local, usa `NODE_ENV=development`.
 - Si vas a probar contra Active Directory real, usa `NODE_ENV=production`.
-- El backend actual usa exactamente estas variables: `AD_URL`, `AD_BASE_DN`, `AD_ADMIN_DN`, `AD_ADMIN_PASSWORD`.
+- El backend usa estas variables para autenticacion LDAP: `AD_URL`, `AD_BASE_DN`, `AD_ADMIN_DN`, `AD_ADMIN_PASSWORD`.
+- Para sincronizar permisos con AD tambien se usan `AD_PERMISSION_GROUP_NOTAS`, `AD_PERMISSION_GROUP_TAREAS` y `AD_PERMISSION_GROUP_REPORTES`.
+- Si quieres que la pantalla de administracion cambie grupos de AD, agrega tambien `AD_PERMISSION_GROUP_NOTAS`, `AD_PERMISSION_GROUP_TAREAS` y `AD_PERMISSION_GROUP_REPORTES`.
+- La cuenta de servicio de AD debe tener permisos para leer usuarios y modificar la membresia de los grupos configurados.
 
 ## 2. Instalar dependencias del backend
 
@@ -219,6 +226,9 @@ AD_URL=ldap://IP_DEL_SERVIDOR_AD
 AD_BASE_DN=DC=tudominio,DC=local
 AD_ADMIN_DN=CN=usuario_servicio,CN=Users,DC=tudominio,DC=local
 AD_ADMIN_PASSWORD=clave_real
+AD_PERMISSION_GROUP_NOTAS=CN=Grupo_Notas,CN=Users,DC=tudominio,DC=local
+AD_PERMISSION_GROUP_TAREAS=CN=Grupo_Tareas,CN=Users,DC=tudominio,DC=local
+AD_PERMISSION_GROUP_REPORTES=CN=Grupo_Reportes,CN=Users,DC=tudominio,DC=local
 NODE_ENV=production
 ```
 

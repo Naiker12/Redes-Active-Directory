@@ -14,6 +14,7 @@ async function renderAdminPage(container) {
             <section class="grid grid-cols-1 xl:grid-cols-[0.9fr_1.4fr] gap-6">
                 <div class="section-card">
                     <h2 class="text-xl font-bold">Asignar permiso</h2>
+                    <p class="text-slate-500 mt-2">Si configuraste los grupos de AD, esta acción también intenta sincronizar la membresía en el dominio.</p>
                     <form id="admin-form" class="form-stack mt-6">
                         <div>
                             <label class="field-label" for="admin-username">Usuario</label>
@@ -116,14 +117,14 @@ async function renderAdminPage(container) {
         submitButton.textContent = 'Asignando...';
 
         try {
-            await window.app.apiFetch('/admin/permisos', {
+            const result = await window.app.apiFetch('/admin/permisos', {
                 method: 'POST',
                 body: JSON.stringify({ username, permiso })
             });
             form.reset();
             container.querySelector('#admin-permiso').value = 'notas';
             feedback.className = 'feedback feedback-success';
-            feedback.textContent = 'Permiso procesado correctamente.';
+            feedback.textContent = result.message || 'Permiso procesado correctamente.';
             await loadPermisos();
         } catch (error) {
             feedback.className = 'feedback feedback-error';
