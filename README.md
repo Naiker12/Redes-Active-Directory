@@ -105,6 +105,8 @@ Abrir en el navegador:
 http://localhost:5500/
 ```
 
+Si sirves el repositorio desde la raiz con `python -m http.server 5500`, la pagina principal ahora redirige sola a `frontend/` para evitar el listado de carpetas.
+
 ### Opcion B: frontend servido por el backend
 
 Esto requiere `production`.
@@ -293,6 +295,8 @@ Abrir:
 ```text
 http://localhost:5500/
 ```
+
+Si abres el servidor en la raiz del proyecto, tambien te llevara a la app sin mostrar el listado de directorio.
 
 ### Prueba real con Active Directory
 
